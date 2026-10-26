@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Palakkad Open World RP | 3D Multiplayer Web Game</title>
+  <!-- Mapbox GL CSS & JS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Malayalam:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+
+  <!-- Three.js & Addons via CDN ImportMap -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Top HUD Bar: Location, Cash, Time, Multiplayer Count -->
+  <header id="hud-top">
+    <div class="hud-card brand-card">
+      <div class="badge-live">LIVE RP</div>
+      <div>
+        <div class="game-title">PALAKKAD OPEN WORLD</div>
+        <div id="current-zone-label" class="zone-subtitle">📍 Palakkad Fort & Kottamaithanam</div>
+      </div>
+    </div>
+
+    <div class="hud-stats-group">
+      <!-- Real-time IST Clock & Day/Night Toggle -->
+      <div class="hud-card stat-pill" id="time-card" title="Click to toggle Real-Time IST vs Custom Time">
+        <span id="time-icon">🌙</span>
+        <div>
+          <div class="stat-label" id="time-mode-label">IST REAL-TIME</div>
+          <div class="stat-value" id="clock-display">10:05 PM</div>
+        </div>
+        <input type="range" id="time-slider" min="0" max="24" step="0.25" value="22" title="Scrub Day/Night Time" />
+      </div>
+
+      <!-- Player Wallet Cash -->
+      <div class="hud-card stat-pill cash-pill">
+        <span class="rupee-icon">₹</span>
+        <div>
+          <div class="stat-label">WALLET CASH</div>
+          <div class="stat-value" id="cash-display">5,000</div>
+        </div>
+      </div>
+
+      <!-- Multiplayer Online Indicator -->
+      <div class="hud-card stat-pill online-pill">
+        <span class="online-dot"></span>
+        <div>
+          <div class="stat-label">PLAYERS</div>
+          <div class="stat-value" id="online-count">1 Online</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <button class="hud-btn" id="btn-open-customize" title="Customize Character (C)">
+        👕 Customize
+      </button>
+      <button class="hud-btn" id="btn-open-mission" title="Start Bus / Delivery Job (M)">
+        🚌 Jobs & Cash
+      </button>
+    </div>
+  </header>
+
+  <!-- Active Mission / Route Banner -->
+  <div id="mission-banner" class="hidden">
+    <div class="mission-title" id="mission-title">🚌 PALAKKAD ROUTE EXPRESS</div>
+    <div class="mission-desc" id="mission-desc">Drive to the glowing green checkpoint at Stadium Bus Stand!</div>
+    <div class="mission-reward" id="mission-reward">Reward: +₹1,500</div>
+  </div>
+
+  <!-- Interactive Mapbox Mini-Map & Fast Travel -->
+  <aside id="minimap-panel">
+    <div class="minimap-header">
+      <span>🗺️ PALAKKAD MAPBOX GPS</span>
+      <button id="btn-toggle-map-style" class="mini-btn" title="Switch Street / Satellite">🛰️ Sat</button>
+    </div>
+    <div id="mapbox-container">
+      <div id="player-map-marker"></div>
+    </div>
+    <div class="teleport-bar">
+      <button class="tp-btn" data-zone="fort">🏰 Fort</button>
+      <button class="tp-btn" data-zone="busstand">🚌 Bus Stand</button>
+      <button class="tp-btn" data-zone="malampuzha">🌊 Malampuzha</button>
+      <button class="tp-btn" data-zone="victoria">🎓 Victoria Col.</button>
+      <button class="tp-btn" data-zone="junction">🚆 Olavakkode</button>
+      <button class="tp-btn" data-zone="kalpathy">🛕 Kalpathy</button>
+    </div>
+  </aside>
+
+  <!-- Context Prompt (Enter Vehicle / Collect Cash / Interact) -->
+  <div id="interaction-prompt" class="hidden">
+    Press <kbd>F</kbd> or Tap to Enter Vehicle
+  </div>
+
+  <!-- Vehicle Speedometer & Controls HUD -->
+  <div id="vehicle-hud" class="hidden">
+    <div class="speed-circle">
+      <div id="speed-value">0</div>
+      <div class="speed-unit">KM/H</div>
+    </div>
+    <div class="vehicle-info">
+      <div id="vehicle-name-display">Komban Private Bus</div>
+      <div class="vehicle-sub">
+        <span><kbd>F</kbd> Exit</span>
+        <span><kbd>H</kbd> Horn</span>
+        <span><kbd>L</kbd> Lights</span>
+        <span><kbd>Space</kbd> Brake</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multiplayer Live Chat & Feed -->
+  <div id="chat-panel">
+    <div id="chat-messages">
+      <div class="chat-msg system">🌴 Welcome to Palakkad Open World RP! Explore Fort, Stadium Stand & Malampuzha Dam.</div>
+    </div>
+    <form id="chat-form">
+      <input type="text" id="chat-input" placeholder="Say something in Palakkad RP... (Enter)" maxlength="120" autocomplete="off" />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <!-- PC Keyboard Controls Guide -->
+  <div id="pc-controls-hint">
+    <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move / Drive</span>
+    <span><kbd>Shift</kbd> Sprint</span>
+    <span><kbd>Space</kbd> Jump / Brake</span>
+    <span><kbd>F</kbd> Enter/Exit Vehicle</span>
+    <span><kbd>H</kbd> Horn</span>
+    <span><kbd>C</kbd> Customize</span>
+    <span><kbd>Drag Mouse</kbd> Camera</span>
+  </div>
+
+  <!-- Mobile On-Screen Touch Controls -->
+  <div id="mobile-controls">
+    <!-- Left Virtual Joystick -->
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-stick"></div>
+      </div>
+    </div>
+
+    <!-- Right Action Buttons -->
+    <div id="mobile-action-btns">
+      <button id="mob-btn-enter" class="mob-btn accent hidden">🚗 Enter/Exit</button>
+      <button id="mob-btn-horn" class="mob-btn warn hidden">📯 Horn</button>
+      <div class="mob-row">
+        <button id="mob-btn-sprint" class="mob-btn">⚡ Sprint</button>
+        <button id="mob-btn-jump" class="mob-btn primary">⬆️ Jump / Brake</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Character Customization Modal -->
+  <div id="customize-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>👕 Character & Outfit Customization</h2>
+        <button class="close-btn" id="btn-close-customize">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Character Name (Shown to Multiplayer)</label>
+          <input type="text" id="cust-name" value="Kichu_PKD" maxlength="18" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bottom Style (Jeans / Mundu)</label>
+            <select id="cust-bottom-type">
+              <option value="jeans" selected>Slim Fit Denim Jeans</option>
+              <option value="mundu">Traditional Kerala Mundu (White & Gold Kasavu)</option>
+              <option value="colored_mundu">Colored Double Mundu</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sunglasses (Ray-Ban Style)</label>
+            <select id="cust-sunglasses">
+              <option value="true" selected>Wear Sunglasses 😎</option>
+              <option value="false">No Glasses</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Shirt Color</label>
+            <input type="color" id="cust-shirt-color" value="#2563eb" />
+          </div>
+          <div class="form-group">
+            <label>Jeans / Bottom Color</label>
+            <input type="color" id="cust-bottom-color" value="#1e3a8a" />
+          </div>
+          <div class="form-group">
+            <label>Skin Tone</label>
+            <input type="color" id="cust-skin-color" value="#c68642" />
+          </div>
+        </div>
+
+        <div class="shop-upgrades">
+          <h3>🛍️ Palakkad Style Upgrades (Spend Cash)</h3>
+          <div class="shop-grid">
+            <button class="shop-item-btn" data-outfit="royal" data-cost="500">
+              <span>👑 Festival Kasavu Set</span>
+              <span class="price-tag">₹500</span>
+            </button>
+            <button class="shop-item-btn" data-outfit="driver" data-cost="300">
+              <span>🚌 Komban Driver Khaki</span>
+              <span class="price-tag">₹300</span>
+            </button>
+            <button class="shop-item-btn" data-outfit="biker" data-cost="750">
+              <span>🏍️ Malampuzha Rider Jacket</span>
+              <span class="price-tag">₹750</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="primary-btn" id="btn-save-customize">✅ Apply & Sync to Multiplayer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Jobs & Economy Modal -->
+  <div id="jobs-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>💼 Palakkad Jobs & Earn Cash</h2>
+        <button class="close-btn" id="btn-close-jobs">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-subtitle">Select an active job or collect floating ₹ Cash Bundles around Palakkad landmarks!</p>
+        <div class="jobs-list">
+          <div class="job-item">
+            <div>
+              <h4>🚌 Route 1: Stadium Bus Stand ➔ Malampuzha Dam Express</h4>
+              <p>Drive the Kerala Private Bus or KSRTC from Stadium Stand through Fort Road to Malampuzha Dam.</p>
+            </div>
+            <button class="primary-btn start-job-btn" data-job="bus_route">Start (Reward: ₹1,500)</button>
+          </div>
+          <div class="job-item">
+            <div>
+              <h4>🏍️ Fast Chai & Snacks Delivery (Kottamaithanam ➔ Fort)</h4>
+              <p>Hop on the Royal Bike or Car and hit 3 checkpoints across Palakkad Town.</p>
+            </div>
+            <button class="primary-btn start-job-btn" data-job="delivery_route">Start (Reward: ₹900)</button>
+          </div>
+          <div class="job-item">
+            <div>
+              <h4>🌊 Malampuzha Dam Sightseeing Tour</h4>
+              <p>Drive any vehicle up to the Malampuzha Dam viewpoint and return to Fort Maithanam.</p>
+            </div>
+            <button class="primary-btn start-job-btn" data-job="dam_tour">Start (Reward: ₹1,200)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-container"></div>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

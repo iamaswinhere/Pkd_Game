@@ -1,0 +1,18 @@
+{
+  "name": "palakkad-open-world-rp",
+  "version": "1.0.0",
+  "description": "Palakkad Open World 3D Web Game (Three.js + Mapbox + Real-time Multiplayer)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "palakkad",
+    "kerala",
+    "threejs",
+    "mapbox",
+    "open-world",
+    "multiplayer"
+  ],
+  "license": "MIT"
+}
